@@ -2,7 +2,7 @@ Hero Net网络框架文档
 
 下面是完整的架构图
 
-![e3Ubd.png](https://i0.imgs.ovh/2024/03/17/e3Ubd.png)
+<img src="https://i0.imgs.ovh/2024/03/17/e3Ubd.png" alt="e3Ubd.png" style="zoom: 50%;" />
 
 
 
@@ -13,3 +13,7 @@ Hero Net网络框架文档
 4. TCP的两个阶段分别叫做Sentry和Protocol我们会将这两个阶段挂到对应的节点上去, 比如会将Sentry先挂载到PollerNode上面去, 当有写事件触发的时候我们会转移到ProtocolPollerNode上面去
 5. 当挂到对应的节点上去的时候, 我们就可以将它提交到工作线程上面去, 
 6. 类似于Netty的ReaderBuffer和WriterBuffer
+
+
+
+**注意, 当前仓库一些代码正在重写, 因为有些逻辑是散的, 比如我们的Epoll逻辑**

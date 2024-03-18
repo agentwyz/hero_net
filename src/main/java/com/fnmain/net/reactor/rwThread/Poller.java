@@ -99,7 +99,11 @@ public final class Poller {
                             if (event == Constants.NET_W) {
                                 pollerNode.onWriteableEvent();
                             } else if (event == Constants.NET_R) {
-                                pollerNode.onReadableEvent(reserved, readBufferSize);
+                                try {
+                                    pollerNode.onReadableEvent(reserved, readBufferSize);
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             } else {
                                 throw new FrameworkException(ExceptionType.NETWORK, Constants.UNREACHED);
                             }

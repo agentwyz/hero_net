@@ -87,7 +87,6 @@ public class Net extends AbstractLifeCycle {
 
     public void addProvider(Provider provider) {
 
-        //这个地方需要加锁
         try (Mutex _ = state.withMutex()) {
 
         } catch (Exception e) {
@@ -99,9 +98,7 @@ public class Net extends AbstractLifeCycle {
         return Objects.requireNonNull(value);
     }
 
-    /*
-    可能会分配多个线程去监听监听不同的端口
-    */
+
     public void addServerListener(ListenerConfig listenerConfig) {
         try (Mutex _ = state.withMutex()) {
 
@@ -138,8 +135,6 @@ public class Net extends AbstractLifeCycle {
 
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-
         }
     }
 
@@ -165,7 +160,7 @@ public class Net extends AbstractLifeCycle {
 
             int r = OS.connect(socket, addr);
 
-            if (r == 0) { //表示TCP三次握手以及完成
+            if (r == 0) {
 
                 PollerTask pollerTask = new PollerTask(PollerTaskType.BIND, channel, sentry);
                 poller.submit(pollerTask);
@@ -174,24 +169,17 @@ public class Net extends AbstractLifeCycle {
             } else if (r < 0) {
                 int errno = Math.abs(r);
 
-                //如果错误码, 表示当前连接正在进行中, 那么我们依旧可以发送一条带有回调的Bind信息
                 if (errno == OS.connectBlockCode()) {
                     Duration duration = durationCallBack.duration();
                     Runnable callBack = durationCallBack.callBack();
 
-                    if (callBack == null) {
-                        callBack = (Runnable) sentry;
-                    } else {
-                        callBack = new SentryWithCallback();
-                    }
-
-
-                    PollerTask pollerTask = new PollerTask(PollerTaskType.UNBIND, channel, callBack);
-                    poller.submit();
-
+                    poller.submit(new PollerTask(PollerTaskType.BIND, channel, callBack==null? sentry:new SentryWithCallback(sentry, callBack)));
+                    //TODO: 这里还需要添加时间轮的逻辑
                 } else {
-
+                    throw new FrameworkException(ExceptionType.NATIVE, STR."Failed to connect, error:\{errno}");
                 }
+            } else {
+
             }
         }
     }

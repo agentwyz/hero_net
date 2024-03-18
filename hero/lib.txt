@@ -1,6 +1,0 @@
-//这个函数用于利用内存
-__attribute__((packed))
-
-sizeof
-memcpy()
-memset()
