@@ -10,6 +10,7 @@ import com.fnmain.net.reactor.rwThread.threadType.WriterTask;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Deque;
 
 public final class ProtocolWriterNode implements WriterNode {
@@ -43,7 +44,14 @@ public final class ProtocolWriterNode implements WriterNode {
 
     @Override
     public void onMsg(MemorySegment reserved, WriterTask writerNode) {
-        
+        if
+    }
+
+    @Override
+    public void onMultipleMsg(MemorySegment reserved, WriterTask writerTask) {
+        if (writerTask.channel() == channel && writerTask.msg() instanceof Collection<?> msgs) {
+            WriterCallback writerCallback = writerTask.msg()
+        }
     }
 
     @Override

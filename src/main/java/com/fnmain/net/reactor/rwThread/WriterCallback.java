@@ -4,7 +4,7 @@ import com.fnmain.net.reactor.resource.Channel;
 
 public interface WriterCallback {
     void onSuccess(Channel channel); //这个用于成功的时候回调
-    void onFailure(Channel channel);
+    void onFailure(Channel channel); //用于发送失败后被回调
 
     default void invokeOnSuccess(Channel channel) {
         try {
