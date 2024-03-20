@@ -21,7 +21,7 @@ Hero Net网络框架文档
 TCP的第一阶段是Sentry阶段, 是TCP的认证阶段, 在这个阶段中会进行下面这些变化
 
 ```java 
-poller->sentryNode->protocol
+poller->sentryNode->pollerNode
 ```
 
 主要是框架的的submit函数将对应的事件提交的对应的任务列表中:
@@ -55,12 +55,12 @@ private void updateToProtocol() {
     }
     //之前注册的写是为了挂载线程的, 现在我们只需要读事件了
     ctl(Constants.NET_R);
+    
     //首先转换成为Protocol    
     Protocol protocol = sentry.toProtocol();
     ProtocolPollerNode pollerNode = new ProtocolPollerNode(nodeMap, channel, protocol, channelState);
     
-    /*替换了sentry, 如果下次触发事件, 那么就会调用protocolPollerNode.onWriterAble()函数
-    对应的就是TcpProtocol*/
+    /*替换了sentry, 如果下次触发读事件*/
     nodeMap.replace(channel.socket().intValue(), this, pollerNode);
     
     /*调用写线程*/
