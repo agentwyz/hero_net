@@ -249,7 +249,7 @@ public class WriteBuffer implements AutoCloseable {
         }
     }
 
-    static final class ReservedWriteBufferPolicy implements WriteBufferPolicy {
+    static final class ReservedWriteBufferPolicy implements WriteBufferPolicy   {
         private Arena arena = null;
 
 

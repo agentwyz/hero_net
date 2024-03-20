@@ -58,7 +58,9 @@ private void updateToProtocol() {
     
     //首先转换成为Protocol    
     Protocol protocol = sentry.toProtocol();
-    ProtocolPollerNode pollerNode = new ProtocolPollerNode(nodeMap, channel, protocol, channelState);
+    
+    ProtocolPollerNode pollerNode = 
+        new ProtocolPollerNode(nodeMap, channel, protocol, channelState);
     
     /*替换了sentry, 如果下次触发读事件*/
     nodeMap.replace(channel.socket().intValue(), this, pollerNode);
@@ -72,21 +74,104 @@ private void updateToProtocol() {
 当执行了这段逻辑之后, 我们就会把map中的sentry更新为protocol, 同时调用writer写线程, 此时writer写线程就会处理它对应的节点
 
 ```java 
-poller->pollerNode->prorocolPollerNode
+poller->pollerNode->protocolPollerNode
 writer->writerNode->protocolWriterNode
 ```
 
-首先我们来看第一个链路:
+首先我们来看第一个链路, 第一个链路是在sentry转换为protocol之后完成的
 
 ```java
+pollerNode.class
+
+//reversed表示当前事件的指针, 这个数组是由wait函数获取的
+MemorySegment reserved = reservedArray[index];
+
+//1 当一旦触发可读事件的时候, 
 public void onReadableEvent(MemorySegment reserved, int len)  {
     int r;
     try {
-        //调用对应的
         r = protocol.onReadableEvent(reserved, len);
     } catch (RuntimeException e) {
         close();
     }
  }
+
+
+TCP protocol.class
+
+//2 protocol是一个接口, 它的对应实现就是TCP protocol
+@Override
+public int onReadableEvent(MemorySegment reserved, int len) {
+    //使用操作系统底层的recv函数接收信息
+    int r = OS.recv(channel.socket(), reserved, len);
+
+    if (r < 0) {
+        throw new FrameworkException(ExceptionType.NETWORK, STR."");
+    } else {
+        return r;
+    }
+
+}
+```
+
+接下来看第二个链路:
+
+```java 
+writerNode.class
+@Override
+public void onMsg(MemorySegment reserved, WriterTask writerTask) {
+    //首先判断当前的writerTask中的chananel是不是channel中的
+    if (writerTask.channel() == channel) {
+
+        Object msg = writerTask.msg(); //首先获取对应的msg
+        
+        WriterCallback writerCallback = writerTask.writerCallback();
+
+        try (final WriteBuffer writeBuffer 
+             = WriteBuffer.newResevedWriteBuffer(reserved)) {
+            try {
+                //对数据进行编码
+                channel.encoder().encode(writeBuffer, msg);
+            } catch (RuntimeException e) {
+                e.printStackTrace();
+                return;
+            }
+
+            if (writeBuffer.writeIndex() > 0) {
+                sendMsg(writeBuffer, writerCallback);
+            }
+
+
+            if (writerCallback != null) {
+                writerCallback.invokeOnSuccess(channel);
+            }
+        }
+    }
+}
+```
+
+channel是整个网络框架的核心数据, 它包含了TCP连接必须品socket, 用于编码的eoncode, 用于解码的decode, 以及与其相关的线程
+
+```java
+public sealed interface Channel{
+    //Socket对象
+    Socket socket();
+
+    //编码对象
+    Encoder encoder();
+
+    //解码对象
+    Decoder decoder();
+
+    //处理业务数据
+    Handler handler();
+
+    Poller poller(); //读线程
+
+    Writer writer(); //写线程
+
+    Loc loc();
+}
+
 ```
 
