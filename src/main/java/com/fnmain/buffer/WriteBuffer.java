@@ -173,6 +173,12 @@ public class WriteBuffer implements AutoCloseable {
 
     }
 
+    public MemorySegment toSegment() {
+        MemorySegment m = content();
+        writeIndex = 0;
+        return m;
+    }
+
 
     static final class HeapWriteBufferPolicy implements WriteBufferPolicy {
         private byte[] data;
