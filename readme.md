@@ -53,7 +53,7 @@ private void updateToProtocol() {
         close();
         return;
     }
-    //因为我们之前注册的
+    //之前注册的写是为了挂载线程的, 现在我们只需要读事件了
     ctl(Constants.NET_R);
     //首先转换成为Protocol    
     Protocol protocol = sentry.toProtocol();
@@ -75,3 +75,18 @@ private void updateToProtocol() {
 poller->pollerNode->prorocolPollerNode
 writer->writerNode->protocolWriterNode
 ```
+
+首先我们来看第一个链路:
+
+```java
+public void onReadableEvent(MemorySegment reserved, int len)  {
+    int r;
+    try {
+        //调用对应的
+        r = protocol.onReadableEvent(reserved, len);
+    } catch (RuntimeException e) {
+        close();
+    }
+ }
+```
+
