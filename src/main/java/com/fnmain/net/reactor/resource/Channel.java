@@ -36,9 +36,19 @@ public sealed interface Channel permits ChannelImpl {
 
     void sendMultipleMsg(Collection<Object> msgs, WriterCallback writerCallback);
 
+    void shutdown(Duration duration);
+
+
     //注意这里的msg类型是Object类型, 所以我们需要对其进行序列化
     default void sendMsg(Object msg) {
         sendMsg(msg, null);
+    }
+
+
+
+
+    default void shoutdown() {
+        shoutdown(defaultShutdownDuration);
     }
 
     default void sendMultipleMsg(Collection<Object> msgs) {

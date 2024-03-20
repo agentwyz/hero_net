@@ -1,10 +1,8 @@
 package com.fnmain.net.reactor.resource;
 
-import com.fnmain.buffer.ReadBuffer;
-
-import java.util.List;
+import com.fnmain.buffer.WriteBuffer;
 
 @FunctionalInterface
 public interface Encoder {
-    void encode(ReadBuffer readBuffer, List<Object> entityList);
+    void encode(WriteBuffer writeBuffer, Object o);
 }

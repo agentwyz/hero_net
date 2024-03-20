@@ -16,4 +16,62 @@ Hero Net网络框架文档
 
 
 
-**注意, 当前仓库一些代码正在重写, 因为有些逻辑是散的, 比如我们的Epoll逻辑**
+### 源码分析
+
+TCP的第一阶段是Sentry阶段, 是TCP的认证阶段, 在这个阶段中会进行下面这些变化
+
+```java 
+poller->sentryNode->protocol
+```
+
+主要是框架的的submit函数将对应的事件提交的对应的任务列表中:
+
+```java 
+ctl(scoket, 写事件);
+poller.submit(pollerTask);
+
+//在map中注册
+map.put(socket, sentry);
+
+//epoll监听获得写事件,
+wait(写事件);
+
+//如果监听到了写事件, 在map中查找socket对应的节点, 如果找到就说明之前注册写事件的socket连接成功
+map.get(socket);
+
+//连接成功之后, updateToProtocol
+```
+
+TCP的第二阶段是Protocol阶段, 是TCP的读写阶段, 下面这个函数是整个框架的核心
+
+```java
+private void updateToProtocol() {
+    try {
+        channel.handler().onConnected(channel); //连接逻辑的处理
+    } catch (RuntimeException e) {
+        System.out.println(STR."Err occurred in onConnected() \{e}");
+        close();
+        return;
+    }
+    //因为我们之前注册的
+    ctl(Constants.NET_R);
+    //首先转换成为Protocol    
+    Protocol protocol = sentry.toProtocol();
+    ProtocolPollerNode pollerNode = new ProtocolPollerNode(nodeMap, channel, protocol, channelState);
+    
+    /*替换了sentry, 如果下次触发事件, 那么就会调用protocolPollerNode.onWriterAble()函数
+    对应的就是TcpProtocol*/
+    nodeMap.replace(channel.socket().intValue(), this, pollerNode);
+    
+    /*调用写线程*/
+    channel.writer().submit(new WriterTask(WriterTaskType.INITIATE, channel,
+            new ProtoAndState(protocol, channelState), null));
+}
+```
+
+当执行了这段逻辑之后, 我们就会把map中的sentry更新为protocol, 同时调用writer写线程, 此时writer写线程就会处理它对应的节点
+
+```java 
+poller->pollerNode->prorocolPollerNode
+writer->writerNode->protocolWriterNode
+```

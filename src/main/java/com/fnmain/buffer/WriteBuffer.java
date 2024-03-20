@@ -40,6 +40,11 @@ public class WriteBuffer implements AutoCloseable {
         return new WriteBuffer(MemorySegment.ofArray(data), new HeapWriteBufferPolicy(data));
     }
 
+    public static WriteBuffer newResevedWriteBuffer(MemorySegment reserved) {
+
+        return new WriteBuffer(reserved, new Re);
+    }
+
 
     public void writeByte(byte b) {
         long nextIndex = writeIndex + 1;
@@ -242,7 +247,37 @@ public class WriteBuffer implements AutoCloseable {
         public void close(WriteBuffer writeBuffer) {
             arena.close();
         }
+    }
 
+    static final class ReservedWriteBufferPolicy implements WriteBufferPolicy {
+        private Arena arena = null;
+
+
+        @Override
+        public void resize(WriteBuffer writeBuffer, long nextIndex) {
+            long newLen = Math.max(nextIndex, writeBuffer.size() << 1);
+
+            if (newLen < 0) {
+                throw new FrameworkException(ExceptionType.NATIVE, "MemorySize overflow");
+            }
+
+            if (arena == null) {
+                arena = Arena.ofConfined();
+            }
+
+            MemorySegment newSegment = arena.allocateArray(ValueLayout.JAVA_BYTE, newLen);
+            MemorySegment.copy(writeBuffer.segment, 0, newSegment, 0, writeBuffer.writeIndex);
+            writeBuffer.segment = newSegment;
+            writeBuffer.size = newLen;
+        }
+
+
+        @Override
+        public void close(WriteBuffer writeBuffer) {
+            if (arena != null) {
+                arena.close();
+            }
+        }
     }
 
 

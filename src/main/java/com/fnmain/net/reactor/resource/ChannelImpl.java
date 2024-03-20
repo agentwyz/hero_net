@@ -8,6 +8,7 @@ import com.fnmain.net.reactor.rwThread.Poller;
 import com.fnmain.net.reactor.rwThread.Writer;
 import com.fnmain.net.reactor.rwThread.WriterCallback;
 
+import java.time.Duration;
 import java.util.Collection;
 
 public record ChannelImpl(Socket socket, Encoder encoder, Decoder decoder, Handler handler, Poller poller, Writer writer, Loc loc)
@@ -33,5 +34,13 @@ public record ChannelImpl(Socket socket, Encoder encoder, Decoder decoder, Handl
 
         WriterTask writerTask = new WriterTask(WriterTaskType.MULTIPLE_MSG, this, msgs, writerCallback);
         writer.submit(writerTask);
+    }
+
+
+    @Override
+    public void shutDown(Duration duration) {
+        if () {
+
+        }
     }
 }
