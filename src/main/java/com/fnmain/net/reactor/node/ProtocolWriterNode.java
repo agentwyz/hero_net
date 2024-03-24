@@ -1,6 +1,8 @@
 package com.fnmain.net.reactor.node;
 
 import com.fnmain.buffer.WriteBuffer;
+import com.fnmain.exception.ExceptionType;
+import com.fnmain.exception.FrameworkException;
 import com.fnmain.net.enums.Constants;
 import com.fnmain.net.enums.State;
 import com.fnmain.net.platform.OsNetworkLibrary;
@@ -14,10 +16,11 @@ import com.fnmain.net.reactor.rwThread.threadType.WriterTask;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
-
 
 
 public final class ProtocolWriterNode implements WriterNode {
@@ -81,10 +84,11 @@ public final class ProtocolWriterNode implements WriterNode {
 
         if (taskQueue == null) {
             int len = (int) data.byteSize();
-            int r;
+            int r; //对应的事件类型
 
             while (true) {
                 try {
+                    //TODO: 关于这点的写还没有弄明白
                     r = protocol.doWrite(data, len);
 
                     if (r > 0 && r < len) {
@@ -101,10 +105,70 @@ public final class ProtocolWriterNode implements WriterNode {
             }
 
             if (r == len) {
+                if (writerCallback != null) {
+                    writerCallback.invokeOnSuccess(channel);
+                }
+            } else {
+                taskQueue = new ArrayDeque<>();
+                copyLocally(data, writerCallback);
 
+                if (r < 0) {
+                    handleEvent(r);
+                }
             }
 
+        } else { //没有完全发送
+
         }
+    }
+
+    private void handleEvent(int r) {
+        if (r == Constants.NET_PW || r == Constants.NET_PR) {
+            ctl(r);
+        } else if (r != Constants.NET_IGNORED) {
+            throw new FrameworkException(ExceptionType.NETWORK, Constants.UNREACHED);
+        }
+    }
+
+    private void ctl(int r) {
+        if(ctlWithStateChecked(expectedState(r))) {
+            close();
+        }
+    }
+
+    private int expectedState(int r) {
+        return switch (r) {
+            case Constants.NET_PR -> Constants.NET_W;
+        }
+    }
+
+
+    private boolean ctlWithStateChecked(int expected) throws Exception {
+        try (Mutex _ = channelState.withMutex()) {
+            int state = channelState.get();
+
+            if((state & Constants.NET_PC) == Constants.NET_PC) {
+                return true;
+            }
+            int current = state & Constants.NET_RW;
+            int to = current | expected;
+            if(to != current) {
+                OsNetworkLibrary.ctlMux(channel.poller().mux(), channel.socket(), current, to);
+                channelState.set(state + (to - current));
+            }
+            return false;
+        }
+    }
+
+
+
+
+    private void copyLocally(MemorySegment data, WriterCallback writerCallback) {
+        Arena arena = Arena.ofConfined();
+        long size = data.byteSize();
+        MemorySegment memorySegment = arena.allocateArray(ValueLayout.JAVA_BYTE, size);
+        MemorySegment.copy(memorySegment, 0, memorySegment, 0, size);
+        taskQueue.addLast(new Task(arena, memorySegment, writerCallback));
     }
 
 
